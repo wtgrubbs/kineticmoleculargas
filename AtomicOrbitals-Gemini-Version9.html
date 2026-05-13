@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atomic Orbitals - Quantum Mechanics Sandbox</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #050510;
+            --panel-bg: #0b0f1c;
+            --neon-blue: #00e5ff;
+            --neon-purple: #b000ff;
+            --neon-green: #00ffaa;
+            --text-main: #e0e0e0;
+            --border-glow: 0 0 10px rgba(0, 229, 255, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            grid-template-rows: auto 1fr 140px 180px;
+            grid-template-areas:
+                "controls energy"
+                "orbital energy"
+                "formula epr"
+                "spectrum spectrum";
+            gap: 15px;
+            padding: 15px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            border-radius: 8px;
+            box-shadow: var(--border-glow);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            color: var(--neon-blue);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+
+        /* Controls Panel */
+        #controls-panel {
+            grid-area: controls;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .header-title {
+            position: absolute;
+            top: -18px;
+            left: 15px;
+            background: var(--bg-color);
+            padding: 0 10px;
+            font-size: 1.3rem;
+            color: var(--neon-blue);
+            text-shadow: 0 0 8px var(--neon-blue);
+            font-weight: bold;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 110px;
+        }
+
+        .control-group.field-group label { color: var(--neon-green); }
+        .control-group.field-group input[type=range] { accent-color: var(--neon-green); }
+
+        label {
+            font-size: 0.8rem;
+            color: var(--neon-purple);
+            font-weight: bold;
+        }
+
+        input[type=range] {
+            accent-color: var(--neon-blue);
+            cursor: pointer;
+        }
+
+        .val-display {
+            font-family: monospace;
+            font-size: 1rem;
+            color: #fff;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        button {
+            background: transparent;
+            color: var(--neon-blue);
+            border: 1px solid var(--neon-blue);
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: var(--neon-blue);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        /* Orbital Display */
+        #orbital-panel {
+            grid-area: orbital;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #plot-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Wavefunction Panel */
+        #formula-panel {
+            grid-area: formula;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: #080b14;
+        }
+        
+        #formula-panel h2 {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            font-size: 1.1rem;
+            margin: 0;
+            opacity: 0.8;
+        }
+
+        /* Energy Graph */
+        #energy-panel {
+            grid-area: energy;
+            justify-content: flex-end;
+            padding-bottom: 30px;
+        }
+
+        .energy-diagram {
+            flex-grow: 1;
+            position: relative;
+            margin-top: 20px;
+            border-left: 2px solid #555;
+            cursor: crosshair;
+        }
+
+        .energy-level {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            border-bottom: 1px solid #444;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+        
+        .energy-label {
+            position: absolute;
+            left: 5px;
+            bottom: 2px;
+            font-size: 0.75rem;
+            color: #aaa;
+            background: var(--panel-bg);
+            padding: 0 4px;
+        }
+
+        .electron {
+            width: 20px;
+            height: 30px;
+            color: var(--neon-blue);
+            font-size: 1.5rem;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 0;
+            cursor: grab;
+            text-shadow: 0 0 10px var(--neon-blue);
+            z-index: 10;
+            pointer-events: auto;
+            transition: bottom 0.2s ease-out;
+        }
+        
+        .electron:active { cursor: grabbing; }
+
+        /* EPR Splitting Panel */
+        #epr-panel {
+            grid-area: epr;
+            display: flex;
+            flex-direction: column;
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(0, 255, 170, 0.2);
+        }
+        
+        #epr-panel h2 { color: var(--neon-green); font-size: 0.9rem; text-shadow: 0 0 5px var(--neon-green); margin-bottom: 2px; }
+        
+        .epr-data {
+            font-size: 0.8rem;
+            color: #ccc;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .epr-data span { font-weight: bold; color: #fff; font-family: monospace; }
+
+        .epr-visual {
+            flex-grow: 1;
+            position: relative;
+            border-left: 1px dashed #555;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .epr-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            transition: top 0.3s ease;
+        }
+
+        .epr-line.up { background-color: var(--neon-blue); box-shadow: 0 0 5px var(--neon-blue); }
+        .epr-line.down { background-color: var(--neon-green); box-shadow: 0 0 5px var(--neon-green); }
+        .epr-center { background-color: #444; width: 100%; height: 1px; position: absolute; top: 50%; z-index: 0;}
+
+        /* Spectral Graph */
+        #spectrum-panel {
+            grid-area: spectrum;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .spectrum-container {
+            height: 40px;
+            background: linear-gradient(to right, 
+                #000000 0%, 
+                #1a0033 15%, 
+                #4b0082 25%, 
+                #0000ff 35%, 
+                #00ffff 45%, 
+                #00ff00 55%, 
+                #ffff00 60%, 
+                #ff0000 70%, 
+                #4d0000 85%, 
+                #000000 100%);
+            border-radius: 4px;
+            position: relative;
+            margin-top: 5px;
+            border: 1px solid #333;
+        }
+
+        .wavelength-axis {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+            margin-bottom: 15px;
+        }
+
+        .spectral-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background-color: white;
+            box-shadow: 0 0 10px white, 0 0 20px white;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 5;
+        }
+
+        .transition-readout {
+            background: rgba(0, 229, 255, 0.05);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            border-radius: 6px;
+            padding: 10px 15px;
+            font-family: monospace;
+            font-size: 0.95rem;
+            color: #ccc;
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .transition-readout span.highlight {
+            color: var(--neon-blue);
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* Modal */
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #modal-content {
+            background: var(--panel-bg);
+            border: 1px solid var(--neon-blue);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 750px;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: #ddd;
+            box-shadow: var(--border-glow);
+        }
+        #modal-content h3 { color: var(--neon-blue); margin: 20px 0 15px 0; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        #modal-content h3:first-child { margin-top: 0; }
+        #modal-content p { margin-bottom: 10px; line-height: 1.5; font-size: 0.95rem; }
+        
+        .math-term {
+            background: #111;
+            padding: 15px;
+            border-left: 3px solid var(--neon-purple);
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        #close-modal { margin-top: 20px; width: 100%; padding: 10px; font-size: 1rem;}
+
+        @media (max-width: 900px) {
+            body {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto 150px 300px 200px;
+                grid-template-areas:
+                    "controls"
+                    "orbital"
+                    "formula"
+                    "epr"
+                    "energy"
+                    "spectrum";
+                overflow-y: auto;
+            }
+            #orbital-panel { height: 350px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls-panel" class="panel">
+        <div class="header-title">Atomic Orbitals - Quantum Mechanics Sandbox</div>
+        
+        <div class="control-group">
+            <label>Protons (Z): <span id="val-Z" class="val-display">1</span></label>
+            <input type="range" id="slider-Z" min="1" max="5" value="1" step="1">
+        </div>
+        <div class="control-group">
+            <label>Principal (n): <span id="val-n" class="val-display">1</span></label>
+            <input type="range" id="slider-n" min="1" max="5" value="1" step="1">
+        </div>
+        <div class="control-group">
+            <label>Azimuthal (l): <span id="val-l" class="val-display">0</span></label>
+            <input type="range" id="slider-l" min="0" max="0" value="0" step="1">
+        </div>
+        <div class="control-group">
+            <label>Magnetic (m): <span id="val-m" class="val-display">0</span></label>
+            <input type="range" id="slider-m" min="0" max="0" value="0" step="1">
+        </div>
+        <div class="control-group">
+            <label>Spin (s): <span id="val-s" class="val-display">+½</span></label>
+            <input type="range" id="slider-s" min="0" max="1" value="1" step="1">
+        </div>
+        
+        <div class="control-group field-group">
+            <label>Magnetic Field (Tesla): <span id="val-B" class="val-display">0</span></label>
+            <input type="range" id="slider-B" min="0" max="10" value="0" step="0.5">
+        </div>
+
+        <div class="button-group">
+            <button id="btn-polar">Underlying Theory</button>
+            <button id="btn-reset">Reset</button>
+            <button id="btn-save">Save Image</button>
+        </div>
+    </div>
+
+    <div id="orbital-panel" class="panel">
+        <div id="plot-container"></div>
+    </div>
+
+    <div id="formula-panel" class="panel">
+        <h2>Atomic Orbital Wavefunction (\(\Psi\))</h2>
+        <div id="math-display">$$ \Psi(r, \theta, \phi) = \text{Loading...} $$</div>
+    </div>
+
+    <div id="epr-panel" class="panel">
+        <h2>Zeeman Effect (e<sup>-</sup> Paramagnetism)</h2>
+        <div class="epr-data">
+            <div>&Delta;E: <span id="epr-energy">0 eV</span></div>
+            <div>Freq: <span id="epr-freq" style="color:var(--neon-green)">0 Hz</span></div>
+        </div>
+        <div class="epr-visual">
+            <div class="epr-center"></div>
+            <div id="epr-line-up" class="epr-line up" title="Spin +1/2"></div>
+            <div id="epr-line-down" class="epr-line down" title="Spin -1/2"></div>
+        </div>
+    </div>
+
+    <div id="energy-panel" class="panel">
+        <h2>Energy Levels <span style="text-transform: none;">(eV)</span></h2>
+        <div class="energy-diagram" id="energy-diagram">
+            <div id="electron" class="electron" draggable="true" title="Drag to transition">↿</div>
+        </div>
+    </div>
+
+    <div id="spectrum-panel" class="panel">
+        <h2>Spectral Output</h2>
+        <div class="spectrum-container" id="spectrum-bg">
+            <div id="spectral-line" class="spectral-line"></div>
+        </div>
+        <div class="wavelength-axis">
+            <span>90nm (UV)</span>
+            <span>200nm</span>
+            <span>400nm (Vis)</span>
+            <span>700nm</span>
+            <span>1500nm (IR)</span>
+            <span>4500nm</span>
+        </div>
+        <div id="transition-readout" class="transition-readout">
+            Drag the electron to a new energy level to view the transition data.
+        </div>
+    </div>
+
+    <div id="modal-overlay">
+        <div id="modal-content">
+            <h3>Spherical Polar Coordinates & Wavefunctions</h3>
+            <p>To solve the Schrödinger equation cleanly for an atom, we separate the 3D space into <b>Spherical Polar Coordinates ($r, \theta, \phi$)</b> because the central force of the nucleus is spherically symmetric.</p>
+            
+            <p>The mathematical representation of an atomic state is a product of a <b>Radial Function $R(r)$</b> and an <b>Angular Function $Y(\theta, \phi)$</b>:</p>
+            <div style="text-align:center; margin: 15px 0;">$$ \Psi(r, \theta, \phi) = R(r) Y(\theta, \phi) $$</div>
+            
+            <div class="math-term">
+                <b>$N_{n,l}$ (Normalization Constant):</b> Ensures the total probability of finding the electron anywhere in space sums to exactly 1 (100%). It is computed directly from the quantum numbers and physical constants:
+                <div style="text-align:center; margin: 10px 0;">$$ N_{n,l} = \sqrt{ \left( \frac{2Z}{n a_0} \right)^3 \frac{(n-l-1)!}{2n(n+l)!} } $$</div>
+            </div>
+            
+            <div class="math-term">
+                <b>$a_0$ (Bohr Radius):</b> The most probable distance between the nucleus and the electron in a Hydrogen atom's ground state ($a_0 \approx 0.0529 \text{ nm}$).
+                <div style="text-align:center; margin: 10px 0;">$$ a_0 = \frac{4 \pi \epsilon_0 \hbar^2}{m_e e^2} $$</div>
+                Where $\epsilon_0$ is the permittivity of free space, $\hbar$ is the reduced Planck constant, $m_e$ is the electron rest mass, and $e$ is the elementary charge.
+            </div>
+
+            <div class="math-term">
+                <b>$e^{-Zr/na_0}$ (Exponential Decay Factor):</b> Dictates how the probability of finding the electron decreases the further you move away from the nucleus, scaled by the nuclear charge $Z$ and principal energy level $n$.
+            </div>
+
+            <div class="math-term">
+                <b>Polynomials (Laguerre & Spherical Harmonics):</b> The algebraic bracketed terms are Associated Laguerre polynomials which dictate the number of "radial nodes" (spherical dead zones of zero probability). The angular component ($Y_l^m$ or sines/cosines) shapes the orbital into the recognizable dumbbell, clover, or complex 3D shapes.
+            </div>
+
+            <h3>Energy & The Zeeman Effect</h3>
+            <p>In a standard one-electron atom without an external field, the electronic energy ordinarily depends only on the principal quantum number ($n$). However, when an external magnetic field is applied to the atom, these energy levels split depending on the electron's angular momentum. This phenomenon is called the <b>Zeeman Effect</b>.</p>
+            <p>The magnetic field couples to both the <b>orbital angular momentum</b> ($m_l$) and the <b>spin angular momentum</b> ($m_s$) of the electron (often modeled via the anomalous Zeeman effect). The resulting shift in energy breaks the degeneracy of the states and is represented as:</p>
+            <div style="text-align:center; margin: 10px 0;">$$ \Delta E = \mu_B B (m_l + g_s m_s) $$</div>
+            <p>Where $\mu_B$ is the Bohr magneton, $B$ is the magnetic field strength in Tesla, and $g_s \approx 2$ is the anomalous spin g-factor of the electron.</p>
+
+            <button id="close-modal">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Application State ---
+        let state = {
+            Z: 1, n: 1, l: 0, m: 0, s: 0.5, B: 0
+        };
+
+        const MAX_N = 5;
+        const RYDBERG_EV = 13.6;
+        const MU_B = 5.78838e-5; // Bohr magneton in eV/T
+        const PLANCK_EV_S = 4.135667696e-15; // Planck constant in eV*s
+        const ALPHA = 1 / 137.036; // Fine structure constant
+        const G_S = 2.0; // Spin g-factor approximation
+
+        let energyLevelPositions = [];
+
+        // --- DOM Elements ---
+        const DOM = {
+            Z: document.getElementById('slider-Z'), n: document.getElementById('slider-n'),
+            l: document.getElementById('slider-l'), m: document.getElementById('slider-m'),
+            s: document.getElementById('slider-s'), B: document.getElementById('slider-B'),
+            vZ: document.getElementById('val-Z'), vn: document.getElementById('val-n'),
+            vl: document.getElementById('val-l'), vm: document.getElementById('val-m'),
+            vs: document.getElementById('val-s'), vB: document.getElementById('val-B'),
+            diag: document.getElementById('energy-diagram'), elec: document.getElementById('electron'),
+            plot: document.getElementById('plot-container'), math: document.getElementById('math-display'),
+            modal: document.getElementById('modal-overlay'), readout: document.getElementById('transition-readout'),
+            eprE: document.getElementById('epr-energy'), eprF: document.getElementById('epr-freq'),
+            eprUp: document.getElementById('epr-line-up'), eprDown: document.getElementById('epr-line-down')
+        };
+
+        function init() {
+            attachEventListeners();
+            updateBounds();
+            drawEnergyLevels();
+            updateEPR();
+            renderOrbital();
+            updateWavefunctionText();
+        }
+
+        function attachEventListeners() {
+            DOM.Z.addEventListener('input', e => updateState({ Z: parseInt(e.target.value) }));
+            DOM.n.addEventListener('input', e => updateState({ n: parseInt(e.target.value) }));
+            DOM.l.addEventListener('input', e => updateState({ l: parseInt(e.target.value) }));
+            DOM.m.addEventListener('input', e => updateState({ m: parseInt(e.target.value) }));
+            DOM.s.addEventListener('input', e => updateState({ s: parseInt(e.target.value) === 1 ? 0.5 : -0.5 }, true));
+            DOM.B.addEventListener('input', e => updateState({ B: parseFloat(e.target.value) }, true));
+
+            document.getElementById('btn-reset').addEventListener('click', () => {
+                DOM.Z.value = 1; DOM.n.value = 1; DOM.l.value = 0; DOM.m.value = 0; 
+                DOM.s.value = 1; DOM.B.value = 0;
+                updateState({ Z: 1, n: 1, l: 0, m: 0, s: 0.5, B: 0 });
+                DOM.readout.innerHTML = "Drag the electron to a new energy level to view the transition data.";
+                document.getElementById('spectral-line').style.opacity = '0';
+            });
+
+            document.getElementById('btn-save').addEventListener('click', () => {
+                Plotly.downloadImage(DOM.plot, {format: 'png', width: 800, height: 800, filename: `orbital_${state.n}_${state.l}_${state.m}`});
+            });
+
+            // Modal
+            document.getElementById('btn-polar').addEventListener('click', () => {
+                DOM.modal.style.display = 'flex';
+                if(window.MathJax) MathJax.typesetPromise();
+            });
+            document.getElementById('close-modal').addEventListener('click', () => DOM.modal.style.display = 'none');
+
+            // Drag & Drop
+            DOM.elec.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', state.n);
+                setTimeout(() => DOM.elec.style.opacity = '0.1', 0);
+            });
+            DOM.elec.addEventListener('dragend', () => DOM.elec.style.opacity = '1');
+            DOM.diag.addEventListener('dragover', e => e.preventDefault());
+            
+            DOM.diag.addEventListener('drop', e => {
+                e.preventDefault();
+                DOM.elec.style.opacity = '1';
+                
+                const rect = DOM.diag.getBoundingClientRect();
+                const dropY = e.clientY - rect.top;
+                const dropPercent = 100 - ((dropY / rect.height) * 100);
+
+                let closestN = state.n;
+                let minDiff = Infinity;
+                energyLevelPositions.forEach(level => {
+                    const diff = Math.abs(level.percent - dropPercent);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestN = level.n;
+                    }
+                });
+
+                if (closestN !== state.n) {
+                    DOM.n.value = closestN;
+                    updateState({ n: closestN });
+                }
+            });
+        }
+
+        function updateState(newState, skipTransition = false) {
+            let oldN = state.n;
+            state = { ...state, ...newState };
+
+            // Enforce quantum rules
+            if (state.l >= state.n) state.l = state.n - 1;
+            if (state.m > state.l) state.m = state.l;
+            if (state.m < -state.l) state.m = -state.l;
+
+            updateBounds();
+            updateLabels();
+            
+            if (newState.hasOwnProperty('n') || newState.hasOwnProperty('l') || 
+                newState.hasOwnProperty('m') || newState.hasOwnProperty('Z')) {
+                updateWavefunctionText();
+            }
+            
+            if (oldN !== state.n && !skipTransition) handleTransition(oldN, state.n);
+            
+            drawEnergyLevels();
+            updateEPR();
+            
+            if (newState.hasOwnProperty('n') || newState.hasOwnProperty('l') || 
+                newState.hasOwnProperty('m') || newState.hasOwnProperty('Z') ||
+                newState.hasOwnProperty('B')) {
+                renderOrbital();
+            }
+            
+            DOM.elec.innerHTML = state.s > 0 ? '↿' : '⇂';
+        }
+
+        function updateBounds() {
+            DOM.n.value = state.n;
+            DOM.l.max = state.n - 1; DOM.l.value = state.l;
+            DOM.m.min = -state.l; DOM.m.max = state.l; DOM.m.value = state.m;
+        }
+
+        function updateLabels() {
+            DOM.vZ.innerText = state.Z; DOM.vn.innerText = state.n;
+            DOM.vl.innerText = state.l; DOM.vm.innerText = state.m;
+            DOM.vs.innerText = state.s > 0 ? "+½" : "-½";
+            DOM.vB.innerText = state.B;
+        }
+
+        // --- Physics Calculations ---
+        function calcBaseEnergy(n, Z) {
+            return -RYDBERG_EV * Math.pow(Z, 2) / Math.pow(n, 2);
+        }
+
+        function calcTotalEnergy(n, l, m, s, Z, B) {
+            let base = calcBaseEnergy(n, Z);
+            // Anomalous Zeeman effect: Delta E = mu_B * B * (m_l + g_s * m_s)
+            let eZeeman = MU_B * B * (m + G_S * s);
+            return { total: base + eZeeman, base, zShift: eZeeman };
+        }
+
+        // --- EPR Fine Structure Calculation ---
+        function updateEPR() {
+            // Spin-orbit coupling constant calculation
+            let E_SO_shift = 0;
+            if (state.l > 0) {
+                // Approximate uncoupled basis shift proportional to m_l
+                let A = (Math.pow(state.Z, 4) * Math.pow(ALPHA, 2) * RYDBERG_EV) / 
+                        (2 * Math.pow(state.n, 3) * state.l * (state.l + 0.5) * (state.l + 1));
+                E_SO_shift = A * state.m; 
+            }
+            
+            // Zeeman splitting (diff between +1/2 and -1/2 is g_s * mu_B * B)
+            let E_Zeeman_shift = G_S * MU_B * state.B;
+            
+            // Total energy difference when spin flips
+            let deltaE = Math.abs(E_Zeeman_shift + E_SO_shift);
+            let freqHz = deltaE / PLANCK_EV_S;
+            
+            // Formatter
+            let freqStr = "0 Hz";
+            if (freqHz > 0) {
+                if (freqHz < 1e6) freqStr = (freqHz / 1e3).toFixed(2) + " kHz";
+                else if (freqHz < 1e9) freqStr = (freqHz / 1e6).toFixed(2) + " MHz";
+                else freqStr = (freqHz / 1e9).toFixed(2) + " GHz";
+            }
+            
+            DOM.eprE.innerText = deltaE > 0 ? deltaE.toExponential(2) + " eV" : "0 eV";
+            DOM.eprF.innerText = freqStr;
+            
+            // Update Visuals (scale relative to max realistic splitting in UI context)
+            const MAX_EXPECTED_DELTA_E = (G_S * MU_B * 10) + 0.001; 
+            let separationPercent = Math.min((deltaE / MAX_EXPECTED_DELTA_E) * 45, 45); // Max 45% offset from center
+            
+            if (deltaE === 0) {
+                DOM.eprUp.style.top = "50%";
+                DOM.eprDown.style.top = "50%";
+            } else {
+                DOM.eprUp.style.top = `calc(50% - ${separationPercent}%)`;
+                DOM.eprDown.style.top = `calc(50% + ${separationPercent}%)`;
+            }
+        }
+
+        // --- Draw Rescaling Energy Levels ---
+        function drawEnergyLevels() {
+            Array.from(DOM.diag.children).forEach(child => {
+                if (child.id !== 'electron') child.remove();
+            });
+
+            energyLevelPositions = [];
+
+            for (let i = 1; i <= MAX_N; i++) {
+                let localM = state.m > i-1 ? i-1 : (state.m < -(i-1) ? -(i-1) : state.m);
+                let energies = calcTotalEnergy(i, state.l >= i ? i-1 : state.l, localM, state.s, state.Z, state.B);
+                
+                // Arbitrary visualization scale: decreasing spacing by half for each n step 
+                // n=1 -> 10%, n=2 -> 50%, n=3 -> 70%, n=4 -> 80%, n=5 -> 85%
+                let basePercent = 10 + 80 * (1 - Math.pow(0.5, i - 1));
+
+                // Add slight visual shift for B-field splitting to ensure lines don't completely overlap
+                // Normalize by the maximum possible Zeeman shift for visual consistency
+                const maxZShift = MU_B * 10 * ((i - 1) + G_S * 0.5); 
+                let shiftPercent = maxZShift === 0 ? 0 : (energies.zShift / maxZShift) * 3; // +/- 3% visual shift
+                
+                let percent = basePercent + shiftPercent;
+                percent = Math.max(0, Math.min(percent, 100)); // clamp just in case
+                
+                energyLevelPositions.push({ n: i, percent: percent });
+
+                const levelDiv = document.createElement('div');
+                levelDiv.className = 'energy-level';
+                levelDiv.style.bottom = `${percent}%`;
+                if (state.B > 0) levelDiv.style.borderBottom = '1px solid var(--neon-purple)';
+
+                const label = document.createElement('div');
+                label.className = 'energy-label';
+                label.innerHTML = `n=${i} (${energies.total.toFixed(4)} eV)`;
+                
+                levelDiv.appendChild(label);
+                DOM.diag.appendChild(levelDiv);
+
+                if (i === state.n) DOM.elec.style.bottom = `${percent}%`;
+            }
+        }
+
+        // --- Transition / Spectrum ---
+        function handleTransition(ni, nf) {
+            const Ei = calcTotalEnergy(ni, state.l, state.m, state.s, state.Z, state.B).total;
+            const Ef = calcTotalEnergy(nf, state.l, state.m, state.s, state.Z, state.B).total;
+            const deltaE = Math.abs(Ef - Ei);
+            
+            if (deltaE < 0.001) return;
+
+            const isAbs = Ef > Ei;
+            const wl = 1240 / deltaE;
+
+            const line = document.getElementById('spectral-line');
+            const minLog = Math.log10(90);
+            const maxLog = Math.log10(4500);
+            const curLog = Math.log10(Math.max(90, Math.min(wl, 4500)));
+            let percentLeft = ((curLog - minLog) / (maxLog - minLog)) * 100;
+
+            let color = '#fff';
+            if (wl >= 380 && wl <= 750) color = wavelengthToHex(wl);
+            else if (wl < 380) color = '#aa00ff'; 
+            else color = '#ff3300'; 
+
+            line.style.left = `${percentLeft}%`;
+            line.style.backgroundColor = color;
+            line.style.boxShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
+            line.style.opacity = '1';
+
+            if (window.spectralTimeout) clearTimeout(window.spectralTimeout);
+            window.spectralTimeout = setTimeout(() => { line.style.opacity = '0'; }, 3500);
+
+            const typeText = isAbs ? "Absorption" : "Emission";
+            DOM.readout.innerHTML = `
+                <div>
+                    Type: <span class="highlight" style="color:${color}">${typeText}</span> &nbsp;&nbsp;|&nbsp;&nbsp; 
+                    Transition: <span class="highlight">n=${ni} &rarr; n=${nf}</span> &nbsp;&nbsp;|&nbsp;&nbsp;
+                    &Delta;E: <span class="highlight">${deltaE.toFixed(2)} eV</span> &nbsp;&nbsp;|&nbsp;&nbsp;
+                    &lambda;: <span class="highlight">${wl.toFixed(1)} nm</span>
+                </div>
+            `;
+            DOM.readout.style.borderColor = color;
+        }
+
+        function wavelengthToHex(Wavelength) {
+            let R, G, B, alpha;
+            if (Wavelength >= 380 && Wavelength < 440) { R = -(Wavelength - 440) / (440 - 380); G = 0.0; B = 1.0; }
+            else if (Wavelength >= 440 && Wavelength < 490) { R = 0.0; G = (Wavelength - 440) / (490 - 440); B = 1.0; }
+            else if (Wavelength >= 490 && Wavelength < 510) { R = 0.0; G = 1.0; B = -(Wavelength - 510) / (510 - 490); }
+            else if (Wavelength >= 510 && Wavelength < 580) { R = (Wavelength - 510) / (580 - 510); G = 1.0; B = 0.0; }
+            else if (Wavelength >= 580 && Wavelength < 645) { R = 1.0; G = -(Wavelength - 645) / (645 - 580); B = 0.0; }
+            else if (Wavelength >= 645 && Wavelength <= 780) { R = 1.0; G = 0.0; B = 0.0; }
+            else { R = 0.0; G = 0.0; B = 0.0; }
+            
+            if (Wavelength >= 380 && Wavelength < 420) alpha = 0.3 + 0.7*(Wavelength - 380) / (420 - 380);
+            else if (Wavelength >= 420 && Wavelength < 701) alpha = 1.0;
+            else if (Wavelength >= 701 && Wavelength <= 780) alpha = 0.3 + 0.7*(780 - Wavelength) / (780 - 700);
+            else alpha = 0.0;
+            return `rgb(${Math.round(R * alpha * 255)},${Math.round(G * alpha * 255)},${Math.round(B * alpha * 255)})`;
+        }
+
+        // --- Wavefunction Formula ---
+        function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+        function factorial(num) {
+            if (num <= 1) return 1;
+            let r = 1; for (let i = 2; i <= num; i++) r *= i; return r;
+        }
+
+        function getRadialLaTeX(n, l, Z) {
+            let n_deg = n - l - 1;
+            let alpha = 2 * l + 1;
+            let polyTerms = [];
+            
+            for (let k = 0; k <= n_deg; k++) {
+                let num = Math.pow(-1, k) * factorial(n_deg + alpha);
+                let den = factorial(n_deg - k) * factorial(alpha + k) * factorial(k);
+                let g = Math.abs(gcd(num, den));
+                num /= g; den /= g;
+                
+                let coefStr = "";
+                if (num < 0) coefStr += "-"; else if (k > 0) coefStr += "+";
+                let absNum = Math.abs(num);
+                if (den === 1) {
+                    if (absNum !== 1 || k === 0) coefStr += absNum;
+                } else {
+                    coefStr += `\\frac{${absNum}}{${den}}`;
+                }
+
+                let varStr = "";
+                if (k > 0) {
+                    let base = (Z === 1) ? `\\left(\\frac{2r}{${n}a_0}\\right)` : `\\left(\\frac{${2*Z}r}{${n}a_0}\\right)`;
+                    varStr = k === 1 ? base : `${base}^{${k}}`;
+                }
+                polyTerms.push(coefStr + varStr);
+            }
+            
+            let polyString = polyTerms.join(" ");
+            if (n_deg > 0) polyString = `\\left( ${polyString} \\right)`;
+
+            let Zstr = Z === 1 ? "" : Z;
+            let preFactorVar = (Z === 1) ? `\\left(\\frac{2r}{${n}a_0}\\right)` : `\\left(\\frac{${2*Z}r}{${n}a_0}\\right)`;
+            let preFactor = l === 0 ? "" : (l === 1 ? preFactorVar : `${preFactorVar}^{${l}}`);
+            let expTerm = `e^{-\\frac{${Zstr}r}{${n}a_0}}`;
+            
+            return `N_{${n},${l}} ${preFactor} ${polyString} ${expTerm}`;
+        }
+
+        function getAngularLaTeX(l, m) {
+            if (l === 0) return `\\left(\\frac{1}{\\sqrt{4\\pi}}\\right)`;
+            if (l === 1) {
+                if (m === 0) return `\\cos\\theta`;
+                if (m === 1) return `\\sin\\theta \\cos\\phi`;
+                if (m === -1) return `\\sin\\theta \\sin\\phi`;
+            }
+            if (l === 2) {
+                if (m === 0) return `(3\\cos^2\\theta - 1)`;
+                if (m === 1) return `\\sin\\theta \\cos\\theta \\cos\\phi`;
+                if (m === -1) return `\\sin\\theta \\cos\\theta \\sin\\phi`;
+                if (m === 2) return `\\sin^2\\theta \\cos(2\\phi)`;
+                if (m === -2) return `\\sin^2\\theta \\sin(2\\phi)`;
+            }
+            if (l === 3) {
+                if (m === 0) return `(5\\cos^3\\theta - 3\\cos\\theta)`;
+                if (m === 1) return `\\sin\\theta (5\\cos^2\\theta - 1) \\cos\\phi`;
+                if (m === -1) return `\\sin\\theta (5\\cos^2\\theta - 1) \\sin\\phi`;
+                if (m === 2) return `\\sin^2\\theta \\cos\\theta \\cos(2\\phi)`;
+                if (m === -2) return `\\sin^2\\theta \\cos\\theta \\sin(2\\phi)`;
+                if (m === 3) return `\\sin^3\\theta \\cos(3\\phi)`;
+                if (m === -3) return `\\sin^3\\theta \\sin(3\\phi)`;
+            }
+            if (l === 4) {
+                if (m === 0) return `(35\\cos^4\\theta - 30\\cos^2\\theta + 3)`;
+                return `P_4^{${Math.abs(m)}}(\\cos\\theta) ${m > 0 ? `\\cos(${m}\\phi)` : `\\sin(${Math.abs(m)}\\phi)`}`;
+            }
+            return `Y_{${l}}^{${m}}(\\theta, \\phi)`; 
+        }
+
+        function updateWavefunctionText() {
+            let radialPart = getRadialLaTeX(state.n, state.l, state.Z);
+            let angularPart = getAngularLaTeX(state.l, state.m);
+            let formula = `$$ \\Psi_{${state.n},${state.l},${state.m}}(r,\\theta,\\phi) = ${radialPart} \\cdot ${angularPart} $$`;
+            
+            DOM.math.innerHTML = formula;
+            if (window.MathJax) MathJax.typesetPromise();
+        }
+
+        // --- 3D Orbital Rendering ---
+        function getAngularProbability(l, m, theta, phi) {
+            const absM = Math.abs(m);
+            let val = 0;
+            if (l === 0) val = 1;
+            else if (l === 1) {
+                if (m === 0) val = Math.cos(theta);
+                else if (m === 1) val = Math.sin(theta) * Math.cos(phi);
+                else if (m === -1) val = Math.sin(theta) * Math.sin(phi);
+            } else if (l === 2) {
+                if (m === 0) val = 3 * Math.pow(Math.cos(theta), 2) - 1;
+                else if (m === 1) val = Math.sin(theta) * Math.cos(theta) * Math.cos(phi);
+                else if (m === -1) val = Math.sin(theta) * Math.cos(theta) * Math.sin(phi);
+                else if (m === 2) val = Math.pow(Math.sin(theta), 2) * Math.cos(2 * phi);
+                else if (m === -2) val = Math.pow(Math.sin(theta), 2) * Math.sin(2 * phi);
+            } else if (l === 3) {
+                if (m === 0) val = 5 * Math.pow(Math.cos(theta), 3) - 3 * Math.cos(theta);
+                else if (m === 1) val = Math.sin(theta) * (5 * Math.pow(Math.cos(theta), 2) - 1) * Math.cos(phi); 
+                else if (m === -1) val = Math.sin(theta) * (5 * Math.pow(Math.cos(theta), 2) - 1) * Math.sin(phi);
+                else if (m === 2) val = Math.pow(Math.sin(theta), 2) * Math.cos(theta) * Math.cos(2 * phi);
+                else if (m === -2) val = Math.pow(Math.sin(theta), 2) * Math.cos(theta) * Math.sin(2 * phi);
+                else if (m === 3) val = Math.pow(Math.sin(theta), 3) * Math.cos(3 * phi);
+                else if (m === -3) val = Math.pow(Math.sin(theta), 3) * Math.sin(3 * phi);
+            } else {
+                val = Math.cos(l * theta) * Math.sin(absM * phi); 
+            }
+            return Math.abs(val);
+        }
+
+        function renderOrbital() {
+            const resolution = 70; 
+            let x = [], y = [], z = [];
+            
+            const extentScale = Math.pow(state.n, 2) / state.Z;
+            let max_r = 0; // Track highest radius value for dynamic bounds
+
+            for (let i = 0; i <= resolution; i++) {
+                let theta = (i * Math.PI) / resolution;
+                let x_row = [], y_row = [], z_row = [];
+
+                for (let j = 0; j <= resolution; j++) {
+                    let phi = (j * 2 * Math.PI) / resolution;
+                    let r = extentScale * getAngularProbability(state.l, state.m, theta, phi);
+                    
+                    if (r > max_r) max_r = r; // Find maximum extension
+                    
+                    x_row.push(r * Math.sin(theta) * Math.cos(phi));
+                    y_row.push(r * Math.sin(theta) * Math.sin(phi));
+                    z_row.push(r * Math.cos(theta));
+                }
+                x.push(x_row); y.push(y_row); z.push(z_row);
+            }
+
+            const data = [{
+                type: 'surface',
+                x: x, y: y, z: z,
+                colorscale: [[0, '#00e5ff'], [0.5, '#b000ff'], [1, '#ff00aa']],
+                showscale: false,
+                lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.5, roughness: 0.2 }
+            }];
+
+            let bound = Math.max(1.5, max_r * 1.1); 
+            
+            if (state.B > 0) {
+                data.push({
+                    type: 'mesh3d',
+                    x: [-bound, bound, bound, -bound, -bound, bound, bound, -bound],
+                    y: [-bound, -bound, bound, bound, -bound, -bound, bound, bound],
+                    z: [bound*1.1, bound*1.1, bound*1.1, bound*1.1, bound*1.2, bound*1.2, bound*1.2, bound*1.2],
+                    color: '#ff3333', opacity: 0.4, name: 'B-Field North'
+                });
+                data.push({
+                    type: 'mesh3d',
+                    x: [-bound, bound, bound, -bound, -bound, bound, bound, -bound],
+                    y: [-bound, -bound, bound, bound, -bound, -bound, bound, bound],
+                    z: [-bound*1.1, -bound*1.1, -bound*1.1, -bound*1.1, -bound*1.2, -bound*1.2, -bound*1.2, -bound*1.2],
+                    color: '#3333ff', opacity: 0.4, name: 'B-Field South'
+                });
+            }
+
+            const limit = Math.max(1.5, max_r * 1.2); 
+            
+            const layout = {
+                paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { l: 0, r: 0, t: 0, b: 0 },
+                scene: {
+                    xaxis: { title: 'X', range: [-limit, limit], showgrid: false, zerolinecolor: '#444' },
+                    yaxis: { title: 'Y', range: [-limit, limit], showgrid: false, zerolinecolor: '#444' },
+                    zaxis: { title: 'Z', range: [-limit, limit], showgrid: false, zerolinecolor: '#444' },
+                    camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+                },
+                showlegend: false
+            };
+
+            Plotly.react(DOM.plot, data, layout, {displayModeBar: false, responsive: true});
+        }
+
+        init();
+    </script>
+</body>
+</html>
